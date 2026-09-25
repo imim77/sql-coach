@@ -1,0 +1,18 @@
+id: cargo-by-destination
+title: Cargo by destination
+concepts: [join, aggregate]
+order_matters: false
+prompt: |
+  For each destination port, return the port name and the total cargo weight in tons
+  on voyages bound for that port, including a voyage that has not arrived yet.
+  Return name and total_weight.
+reference_sql: |
+  SELECT p.name, SUM(c.weight_tons) AS total_weight
+  FROM cargo AS c
+  JOIN voyages AS voy ON voy.id = c.voyage_id
+  JOIN ports AS p ON p.id = voy.destination_port_id
+  GROUP BY p.id, p.name
+hints:
+  - Weight lives on cargo. The destination lives on the voyage, and the port name lives on ports.
+  - Join cargo to voyages to the destination port, then sum weight per port name.
+  - Name the sum total_weight. Group by the destination port.

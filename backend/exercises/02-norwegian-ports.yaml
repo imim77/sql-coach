@@ -1,0 +1,16 @@
+id: norwegian-ports
+title: Norwegian ports
+concepts: [filter, order]
+order_matters: true
+prompt: |
+  List the ports in Norway, sorted A to Z by port name.
+  Return one column named name. Row order is part of the answer.
+reference_sql: |
+  SELECT name
+  FROM ports
+  WHERE country = 'Norway'
+  ORDER BY name
+hints:
+  - This is a filter plus a sort. The country value is Norway.
+  - Filter with WHERE, then sort by the port name ascending.
+  - Row order is graded, so the sort has to stay. Order by name.

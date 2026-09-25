@@ -1,0 +1,17 @@
+id: voyage-counts
+title: Voyage counts
+concepts: [join, group]
+order_matters: false
+prompt: |
+  For every vessel, return its name and how many voyages it has.
+  A vessel that has never sailed has a count of 0.
+  Return name and voyage_count.
+reference_sql: |
+  SELECT v.name, COUNT(voy.id) AS voyage_count
+  FROM vessels AS v
+  LEFT JOIN voyages AS voy ON voy.vessel_id = v.id
+  GROUP BY v.id, v.name
+hints:
+  - Every vessel should appear, including one that never sailed. An inner join drops that vessel.
+  - Keep unmatched vessels in the join, then count voyages per vessel name.
+  - Count the voyage id rather than every joined column, or the idle vessel is counted as one. Name that count voyage_count.

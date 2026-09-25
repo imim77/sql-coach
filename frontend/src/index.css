@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sounding: #163a4a;
+  --color-wash: #e4eef0;
+  --color-manifest: #f7fbfc;
+  --color-fathom: #0e2a33;
+  --color-lead: #c5d5da;
+  --color-buoy: #d97706;
+  --color-kelp: #1f7a4d;
+  --color-rust: #b42318;
+  --font-display: "Syne", sans-serif;
+  --font-sans: "Source Sans 3", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --animate-rise: rise 80ms ease-out;
+  --animate-pop: pop 180ms ease-out;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.7);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-wash text-fathom font-sans antialiased;
+  }
+
+  button:focus-visible,
+  select:focus-visible,
+  summary:focus-visible {
+    @apply outline-none ring-2 ring-sounding ring-offset-2 ring-offset-wash;
+  }
+}

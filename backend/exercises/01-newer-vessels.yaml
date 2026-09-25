@@ -1,0 +1,15 @@
+id: newer-vessels
+title: Newer vessels
+concepts: [filter]
+order_matters: false
+prompt: |
+  List the name of every vessel built after 2010.
+  Return one column named name.
+reference_sql: |
+  SELECT name
+  FROM vessels
+  WHERE year_built > 2010
+hints:
+  - The vessels table has a year_built column. Keep only the later builds.
+  - Put the year test in WHERE. Built after 2010 means year_built greater than 2010.
+  - Return a single column, name, from vessels.

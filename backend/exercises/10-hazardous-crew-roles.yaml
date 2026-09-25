@@ -1,0 +1,21 @@
+id: hazardous-crew-roles
+title: Hazardous crew roles
+concepts: [semi-join]
+order_matters: false
+prompt: |
+  Return each distinct crew role that serves on a vessel which has carried
+  hazardous cargo on at least one voyage.
+  Return one column named role.
+reference_sql: |
+  SELECT DISTINCT crew.role
+  FROM crew
+  WHERE crew.vessel_id IN (
+      SELECT voy.vessel_id
+      FROM cargo
+      JOIN voyages AS voy ON voy.id = cargo.voyage_id
+      WHERE cargo.hazardous
+  )
+hints:
+  - First find vessels that sailed a voyage with hazardous cargo, then look at who works on those vessels.
+  - A subquery or semi-join from crew to that set of vessels is enough. The cargo description is not part of the output.
+  - Return distinct role values only.

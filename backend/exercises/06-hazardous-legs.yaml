@@ -1,0 +1,20 @@
+id: hazardous-legs
+title: Hazardous legs
+concepts: [join, filter]
+order_matters: false
+prompt: |
+  For each hazardous cargo row, return the vessel name, the origin port name,
+  and the destination port name.
+  Return vessel, origin, and destination.
+reference_sql: |
+  SELECT ves.name AS vessel, origin.name AS origin, destination.name AS destination
+  FROM cargo AS c
+  JOIN voyages AS voy ON voy.id = c.voyage_id
+  JOIN vessels AS ves ON ves.id = voy.vessel_id
+  JOIN ports AS origin ON origin.id = voy.origin_port_id
+  JOIN ports AS destination ON destination.id = voy.destination_port_id
+  WHERE c.hazardous
+hints:
+  - The hazardous flag is on cargo. The names you need are on vessels and on ports.
+  - Join cargo to voyages, then to vessels, then to ports twice, and keep hazardous rows.
+  - Alias the two port joins so origin and destination stay distinct. The output columns are vessel, origin, and destination.

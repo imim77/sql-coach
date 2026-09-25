@@ -1,0 +1,19 @@
+id: average-duration
+title: Average duration
+concepts: [dates, null, aggregate]
+order_matters: false
+prompt: |
+  For completed voyages only, return the average length in days by vessel type,
+  rounded to one decimal place. A voyage still at sea has no arrival date and does not count.
+  Return vessel_type and avg_days.
+reference_sql: |
+  SELECT ves.vessel_type,
+         ROUND(AVG(voy.arrived_on - voy.departed_on), 1) AS avg_days
+  FROM voyages AS voy
+  JOIN vessels AS ves ON ves.id = voy.vessel_id
+  WHERE voy.arrived_on IS NOT NULL
+  GROUP BY ves.vessel_type
+hints:
+  - Subtracting two dates gives a number of days. Skip voyages that have not arrived.
+  - Join voyages to vessels, ignore null arrival dates, and average the day count per vessel type.
+  - Round that average to one decimal place and name it avg_days.

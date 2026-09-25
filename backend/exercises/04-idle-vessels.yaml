@@ -1,0 +1,16 @@
+id: idle-vessels
+title: Idle vessels
+concepts: [anti-join]
+order_matters: false
+prompt: |
+  Return the name of every vessel that has no voyages.
+  Return one column named name.
+reference_sql: |
+  SELECT v.name
+  FROM vessels AS v
+  LEFT JOIN voyages AS voy ON voy.vessel_id = v.id
+  WHERE voy.id IS NULL
+hints:
+  - You want vessels that do not show up in voyages.
+  - An anti-join works: left join voyages and keep the rows where the voyage side is missing. NOT EXISTS also fits.
+  - Keep the vessel name only where there is no matching voyage row.

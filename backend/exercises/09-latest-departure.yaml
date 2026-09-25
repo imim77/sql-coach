@@ -1,0 +1,25 @@
+id: latest-departure
+title: Latest departure
+concepts: [window]
+order_matters: false
+prompt: |
+  For each vessel that has at least one voyage, return the vessel name and the
+  departure date of its most recent voyage.
+  Return name and departed_on.
+reference_sql: |
+  SELECT name, departed_on
+  FROM (
+      SELECT ves.name,
+             voy.departed_on,
+             ROW_NUMBER() OVER (
+                 PARTITION BY ves.id
+                 ORDER BY voy.departed_on DESC
+             ) AS rn
+      FROM voyages AS voy
+      JOIN vessels AS ves ON ves.id = voy.vessel_id
+  ) AS ranked
+  WHERE rn = 1
+hints:
+  - Each vessel can have many voyages. You want the one with the latest departed_on.
+  - Rank the voyages inside each vessel, most recent departure first, and keep the first rank.
+  - A window such as row_number, or DISTINCT ON the vessel ordered by departed_on descending, both fit. Return name and departed_on.

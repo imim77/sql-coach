@@ -1,0 +1,26 @@
+id: origin-heavy-ports
+title: Origin-heavy ports
+concepts: [aggregate, subquery]
+order_matters: false
+prompt: |
+  Return the name of every port that is used more often as a voyage origin
+  than as a voyage destination.
+  Return one column named name.
+reference_sql: |
+  SELECT p.name
+  FROM ports AS p
+  JOIN (
+      SELECT origin_port_id AS port_id, COUNT(*) AS origin_count
+      FROM voyages
+      GROUP BY origin_port_id
+  ) AS origins ON origins.port_id = p.id
+  JOIN (
+      SELECT destination_port_id AS port_id, COUNT(*) AS destination_count
+      FROM voyages
+      GROUP BY destination_port_id
+  ) AS destinations ON destinations.port_id = p.id
+  WHERE origins.origin_count > destinations.destination_count
+hints:
+  - Count how often each port is an origin and how often it is a destination, then compare.
+  - Two grouped queries, one on each port role, can be joined back to ports.
+  - Keep the port where the origin count is greater than the destination count, and return its name.
