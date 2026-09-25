@@ -2,14 +2,21 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from app.catalog import continue_after, get, summaries
+from app.catalog import (
+    add_exercise,
+    continue_after,
+    get,
+    list_exercises as catalog_exercises,
+    summaries,
+)
 from app.coach import coach_note
 from app.config import OPENAI_API_KEY, STUDENT_DATABASE_URL
 from app.db import DatabaseUnavailable, json_row, ping, run_query, schema_preview
-from app.exercises import detail
+from app.exercises import detail, summary
 from app.grader import compare
 from app.lesson_gen import LessonError, ensure_installed
 from app.sql_guard import QueryRejected
+from app.tasks import TaskError, accept_task
 
 app = FastAPI(title="SQL Coach")
 app.add_middleware(
@@ -33,6 +40,16 @@ class HintBody(BaseModel):
 
 class ContinueBody(BaseModel):
     after_id: str
+
+
+class TaskBody(BaseModel):
+    id: str
+    title: str
+    prompt: str
+    concepts: list[str]
+    order_matters: bool = False
+    reference_sql: str
+    hints: list[str]
 
 
 def _exercise_or_404(exercise_id: str):
@@ -113,6 +130,23 @@ def health():
 @app.get("/api/exercises")
 def list_exercises():
     return summaries()
+
+
+@app.post("/api/tasks", status_code=201)
+def create_task(body: TaskBody):
+    try:
+        exercise = accept_task(
+            body.model_dump(),
+            {item.id for item in catalog_exercises()},
+            run_query,
+        )
+    except TaskError as exc:
+        status = 409 if exc.message == "A task with this id already exists." else 422
+        raise HTTPException(status_code=status, detail=exc.message) from exc
+    except DatabaseUnavailable as exc:
+        raise HTTPException(status_code=503, detail=exc.message) from exc
+    add_exercise(exercise)
+    return summary(exercise)
 
 
 @app.post("/api/exercises/continue")
