@@ -1,71 +1,112 @@
-import type { ExerciseDetail } from "../types";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { ExerciseDetail, TablePreview } from "@/types";
 
-function formatCell(value: unknown): string {
-  if (value === null || value === undefined) return "null";
+function renderCell(value: unknown) {
+  if (value === null || value === undefined) {
+    return <span className="text-muted-foreground italic">null</span>;
+  }
   if (typeof value === "boolean") return value ? "true" : "false";
   return String(value);
+}
+
+function SampleTable({ table }: { table: TablePreview }) {
+  return (
+    <Table className="font-mono text-sm">
+      <TableHeader>
+        <TableRow>
+          {table.sample_columns.map((column) => (
+            <TableHead key={column} className="text-xs">
+              {column}
+            </TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {table.sample_rows.map((row, rowIndex) => (
+          <TableRow key={rowIndex}>
+            {row.map((cell, cellIndex) => (
+              <TableCell key={cellIndex}>{renderCell(cell)}</TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 }
 
 export default function Brief({ exercise }: { exercise: ExerciseDetail | null }) {
   if (!exercise) {
     return (
-      <section className="min-w-0 border border-lead bg-manifest p-4 text-sm lg:col-span-4 lg:overflow-auto">
-        Loading the exercise…
+      <section className="min-h-0 min-w-0 overflow-auto">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-8 w-2/3" />
+          <div className="flex gap-2">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-5 w-20" />
+          </div>
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="max-h-96 min-w-0 overflow-auto border border-lead bg-manifest p-4 lg:col-span-4 lg:max-h-none">
-      <h1 className="font-display text-2xl tracking-tight text-sounding">{exercise.title}</h1>
-      <p className="mt-1 font-mono text-xs uppercase tracking-wide text-sounding">{exercise.dataset}</p>
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {exercise.concepts.map((concept) => (
-          <li
-            key={concept}
-            className="bg-wash px-2 py-0.5 font-mono text-xs uppercase tracking-wide text-sounding"
-          >
-            {concept}
-          </li>
-        ))}
-      </ul>
-      <p className="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed">{exercise.prompt}</p>
-      <h2 className="mt-6 font-mono text-xs uppercase tracking-wide text-sounding">Tables</h2>
-      <div className="mt-2">
-        {exercise.schema.map((table) => (
-          <details key={table.name} className="border-t border-lead py-2">
-            <summary className="cursor-pointer font-mono text-sm">{table.name}</summary>
-            <p className="mt-2 font-mono text-xs leading-5 text-fathom/80">
-              {table.columns
-                .map((column) => `${column.name} ${column.data_type}${column.nullable ? " null" : ""}`)
-                .join(", ")}
-            </p>
-            <div className="mt-2 overflow-x-auto">
-              <table className="w-full border-collapse text-left font-mono text-xs">
-                <thead>
-                  <tr className="border-b border-lead">
-                    {table.sample_columns.map((column) => (
-                      <th key={column} className="px-2 py-1 font-medium">
-                        {column}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {table.sample_rows.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="border-b border-lead/70">
-                      {row.map((cell, cellIndex) => (
-                        <td key={cellIndex} className="px-2 py-1">
-                          {formatCell(cell)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </details>
-        ))}
+    <section className="min-h-0 min-w-0 overflow-auto">
+      <div className="flex flex-col gap-4">
+        <p className="font-mono text-xs text-muted-foreground">{exercise.dataset}</p>
+        <h1 className="font-display text-2xl tracking-tight">{exercise.title}</h1>
+        <div className="flex flex-wrap gap-2">
+          {exercise.concepts.map((concept) => (
+            <Badge key={concept} variant="secondary">
+              {concept}
+            </Badge>
+          ))}
+        </div>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed">{exercise.prompt}</p>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-sm font-medium">Tables</h2>
+          {exercise.schema.length > 0 ? (
+            <Accordion defaultValue={[exercise.schema[0].name]}>
+              {exercise.schema.map((table) => (
+                <AccordionItem key={table.name} value={table.name}>
+                  <AccordionTrigger>
+                    <span className="font-mono">{table.name}</span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="flex flex-col gap-3">
+                      <ul className="flex flex-col gap-1 font-mono text-muted-foreground">
+                        {table.columns.map((column) => (
+                          <li key={column.name}>
+                            {column.name} {column.data_type}
+                            {column.nullable ? " null" : ""}
+                          </li>
+                        ))}
+                      </ul>
+                      <SampleTable table={table} />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          ) : null}
+        </div>
       </div>
     </section>
   );
