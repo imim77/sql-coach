@@ -10,17 +10,17 @@ import {
 } from "./api";
 import Brief from "./components/Brief";
 import CoachSlip from "./components/CoachSlip";
+import ExerciseSidebar from "./components/ExerciseSidebar";
 import Header from "./components/Header";
 import ResultPane from "./components/ResultPane";
 import SqlEditor from "./components/SqlEditor";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import type { ExerciseDetail, ExerciseSummary, HintResponse, QueryResult } from "./types";
 
 const PASSED_KEY = "sql-coach-passed";
-
-const primary =
-  "bg-sounding px-3 py-1.5 text-sm font-semibold text-manifest hover:bg-sounding/90 disabled:opacity-50";
-const quiet =
-  "border border-lead bg-manifest px-3 py-1.5 text-sm hover:bg-wash disabled:opacity-50";
 
 function loadPassed(): Set<string> {
   try {
@@ -44,6 +44,7 @@ export default function App() {
   const [solution, setSolution] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [listReady, setListReady] = useState(false);
   const [passed, setPassed] = useState<Set<string>>(loadPassed);
   const [generating, setGenerating] = useState(false);
   const requested = useRef<Set<string>>(new Set());
@@ -51,7 +52,8 @@ export default function App() {
   useEffect(() => {
     fetchExercises()
       .then(setExercises)
-      .catch((error: unknown) => setPageError(messageOf(error)));
+      .catch((error: unknown) => setPageError(messageOf(error)))
+      .finally(() => setListReady(true));
   }, []);
 
   const exerciseId = exercises[index]?.id;
@@ -180,60 +182,86 @@ export default function App() {
 
   if (pageError && exercises.length === 0) {
     return (
-      <main className="mx-auto max-w-lg px-6 py-16">
-        <h1 className="font-display text-3xl text-sounding">SQL Coach</h1>
-        <p className="mt-4 text-sm leading-relaxed">{pageError}</p>
+      <main className="mx-auto flex max-w-lg flex-col gap-4 px-6 py-16">
+        <h1 className="font-display text-3xl">SQL Coach</h1>
+        <p className="text-sm leading-relaxed">{pageError}</p>
       </main>
     );
   }
 
+  const current = exercises[index];
+
   return (
-    <div className="flex min-h-screen flex-col bg-wash text-fathom lg:h-screen lg:overflow-hidden">
-      <Header
-        exercises={exercises}
-        index={index}
-        unlockedThrough={openThrough}
-        generating={generating}
-        canContinue={
-          canContinue && !generating && index === exercises.length - 1
-        }
-        onContinue={() => {
-          if (lastId) void requestNext(lastId);
-        }}
-        onIndex={goTo}
-      />
-      {pageError ? (
-        <p className="bg-rust px-4 py-2 text-sm text-manifest">{pageError}</p>
-      ) : null}
-      <main className="grid min-w-0 flex-1 gap-3 p-3 lg:min-h-0 lg:grid-cols-12 lg:grid-rows-[minmax(0,1.2fr)_minmax(14rem,0.9fr)]">
-        <Brief exercise={detail} />
-        <section className="flex min-h-80 min-w-0 flex-col border border-lead bg-manifest lg:col-span-8 lg:min-h-0">
-          <div className="min-h-64 flex-1">
-            {exerciseId ? (
-              <SqlEditor exerciseId={exerciseId} sql={sql} onChange={setSql} onRun={onRun} />
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2 border-t border-lead px-3 py-2">
-            <button type="button" className={primary} disabled={busy || !sql.trim()} onClick={onRun}>
-              Run
-            </button>
-            <button type="button" className={quiet} disabled={busy || !sql.trim()} onClick={onCheck}>
-              Check answer
-            </button>
-            <span className="ml-auto text-xs text-fathom/60">Ctrl/Cmd + Enter runs</span>
-          </div>
-        </section>
-        <ResultPane result={result} />
-        <CoachSlip
-          hint={hint}
-          solution={solution}
-          busy={busy}
-          canHint={sql.trim().length > 0}
-          onHint={onHint}
-          onSolution={onSolution}
+    <SidebarProvider className="h-svh overflow-hidden">
+        <ExerciseSidebar
+          exercises={exercises}
+          index={index}
+          openThrough={openThrough}
+          passed={passed}
+          loading={!listReady}
+          generating={generating}
+          canContinue={canContinue && !generating && index === exercises.length - 1}
+          onContinue={() => {
+            if (lastId) void requestNext(lastId);
+          }}
+          onIndex={goTo}
         />
-      </main>
-    </div>
+        <SidebarInset className="min-h-0 overflow-hidden">
+          <Header title={current?.title ?? ""} dataset={current?.dataset ?? "Northline"} />
+          <Separator />
+          {pageError ? (
+            <div className="shrink-0 px-3 pt-3">
+              <Alert variant="destructive">
+                <AlertDescription>{pageError}</AlertDescription>
+              </Alert>
+            </div>
+          ) : null}
+          <div className="grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-auto p-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden">
+            <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
+              <div className="min-w-0 overflow-auto lg:max-h-[28rem] lg:shrink-0">
+                <Brief exercise={detail} />
+              </div>
+              <section className="flex min-h-72 min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card lg:min-h-0 lg:flex-1">
+                <div className="min-h-48 flex-1 lg:min-h-0">
+                  {exerciseId ? (
+                    <SqlEditor exerciseId={exerciseId} sql={sql} onChange={setSql} onRun={onRun} />
+                  ) : null}
+                </div>
+                <Separator />
+                <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2">
+                  <Button type="button" disabled={busy || !sql.trim()} onClick={onRun}>
+                    Run
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy || !sql.trim()}
+                    onClick={onCheck}
+                  >
+                    Check answer
+                  </Button>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    Ctrl/Cmd + Enter runs
+                  </span>
+                </div>
+              </section>
+              <div className="min-w-0 lg:min-h-32 lg:flex-1 lg:overflow-auto">
+                <ResultPane result={result} />
+              </div>
+            </div>
+            <div className="min-w-0 lg:min-h-0 lg:overflow-auto">
+              <CoachSlip
+                hint={hint}
+                solution={solution}
+                busy={busy}
+                canHint={sql.trim().length > 0}
+                onHint={onHint}
+                onSolution={onSolution}
+              />
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
   );
 }
 
