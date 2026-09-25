@@ -2,6 +2,7 @@ import threading
 
 from app.exercises import Exercise, load_exercises, summary
 from app.lesson_gen import LessonError, build_next, ensure_installed, load_generated, save_exercise
+from app.tasks import load_tasks
 
 _lock = threading.Lock()
 _gen_lock = threading.Lock()
@@ -9,7 +10,7 @@ _exercises: list[Exercise] = []
 
 
 def init() -> None:
-    loaded = load_exercises() + load_generated()
+    loaded = load_exercises() + load_tasks() + load_generated()
     with _lock:
         _exercises[:] = loaded
     for exercise in loaded:
@@ -24,6 +25,18 @@ def init() -> None:
 def list_exercises() -> list[Exercise]:
     with _lock:
         return list(_exercises)
+
+
+def add_exercise(exercise: Exercise) -> None:
+    with _lock:
+        for item in _exercises:
+            if item.id == exercise.id:
+                raise ValueError("A task with this id already exists.")
+        for index, item in enumerate(_exercises):
+            if item.schema_name != "practice":
+                _exercises.insert(index, exercise)
+                return
+        _exercises.append(exercise)
 
 
 def get(exercise_id: str) -> Exercise | None:

@@ -8,6 +8,7 @@ load_dotenv(ROOT / ".env")
 
 EXERCISES_DIR = ROOT / "exercises"
 GENERATED_DIR = ROOT / "generated"
+TASKS_DIR = ROOT / "tasks"
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://sqlcoach:sqlcoach@localhost:5432/sqlcoach",
