@@ -5,6 +5,8 @@ __pycache__/
 .env
 backend/generated/*.yaml
 backend/tasks/*.yaml
+backend/tasks.sqlite
+backend/*.sqlite
 node_modules/
 dist/
 .DS_Store

@@ -1,17 +1,31 @@
+import json
 import re
+import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 import yaml
 
-from app.config import TASKS_DIR
+from app.config import TASKS_DB, TASKS_DIR
 from app.exercises import Exercise
 from app.sql_guard import QueryRejected, prepare_statement
 
 ID_RE = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 CONCEPT_RE = re.compile(r"^[a-z][a-z0-9-]{0,23}$")
 QUERY_LEAK = re.compile(r"```|\bselect\b", re.IGNORECASE)
-FILE_ID = re.compile(r"\d+-(.+)\.yaml")
-FILE_NUMBER = re.compile(r"^(\d+)-")
+_YAML_NUMBER = re.compile(r"^(\d+)-.+\.yaml$")
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    concepts TEXT NOT NULL,
+    order_matters INTEGER NOT NULL,
+    reference_sql TEXT NOT NULL,
+    hints TEXT NOT NULL,
+    position INTEGER NOT NULL UNIQUE
+)
+"""
 
 
 class TaskError(Exception):
@@ -44,55 +58,39 @@ def task_from_payload(data: dict) -> Exercise:
     )
 
 
-def save_task(exercise: Exercise, directory: Path | None = None) -> Path:
-    directory = TASKS_DIR if directory is None else directory
-    directory.mkdir(parents=True, exist_ok=True)
-    if exercise.id in _ids_on_disk(directory):
-        raise TaskError("A task with this id already exists.")
-    path = directory / f"{_next_number(directory):04d}-{exercise.id}.yaml"
-    payload = {
-        "id": exercise.id,
-        "title": exercise.title,
-        "concepts": exercise.concepts,
-        "order_matters": exercise.order_matters,
-        "prompt": exercise.prompt,
-        "reference_sql": exercise.reference_sql,
-        "hints": exercise.hints,
-    }
-    path.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=True))
-    return path
+def save_task(exercise: Exercise, db_path: Path | None = None) -> None:
+    with _session(db_path) as connection:
+        if _has_id(connection, exercise.id):
+            raise TaskError("A task with this id already exists.")
+        _insert(connection, exercise)
 
 
-def load_tasks(directory: Path | None = None) -> list[Exercise]:
-    directory = TASKS_DIR if directory is None else directory
-    if not directory.exists():
-        return []
-    exercises: list[Exercise] = []
-    seen: set[str] = set()
-    for path in sorted(directory.glob("*.yaml")):
-        exercise = task_from_payload(yaml.safe_load(path.read_text()))
-        if exercise.id in seen:
-            raise TaskError(f"Duplicate task id {exercise.id}")
-        seen.add(exercise.id)
-        exercises.append(exercise)
-    return exercises
+def load_tasks(db_path: Path | None = None) -> list[Exercise]:
+    with _session(db_path) as connection:
+        rows = connection.execute(
+            """
+            SELECT id, title, prompt, concepts, order_matters, reference_sql, hints
+            FROM tasks
+            ORDER BY position
+            """
+        ).fetchall()
+        return [_exercise_from_row(row) for row in rows]
 
 
 def accept_task(
     data: dict,
     known_ids: set[str],
     execute,
-    directory: Path | None = None,
+    db_path: Path | None = None,
 ) -> Exercise:
     exercise = task_from_payload(data)
-    folder = TASKS_DIR if directory is None else directory
-    if exercise.id in known_ids or exercise.id in _ids_on_disk(folder):
+    if exercise.id in known_ids or _stored(exercise.id, db_path):
         raise TaskError("A task with this id already exists.")
     try:
         execute(exercise.reference_sql, "practice")
     except QueryRejected as exc:
         raise TaskError(exc.message) from exc
-    save_task(exercise, folder)
+    save_task(exercise, db_path)
     return exercise
 
 
@@ -157,21 +155,111 @@ def _hints(value: object) -> list[str]:
     return hints
 
 
-def _ids_on_disk(directory: Path) -> set[str]:
+def _stored(exercise_id: str, db_path: Path | None) -> bool:
+    with _session(db_path) as connection:
+        return _has_id(connection, exercise_id)
+
+
+def _has_id(connection: sqlite3.Connection, exercise_id: str) -> bool:
+    row = connection.execute(
+        "SELECT 1 FROM tasks WHERE id = ?",
+        (exercise_id,),
+    ).fetchone()
+    return row is not None
+
+
+def _insert(connection: sqlite3.Connection, exercise: Exercise) -> None:
+    position = connection.execute(
+        "SELECT COALESCE(MAX(position), 0) + 1 FROM tasks"
+    ).fetchone()[0]
+    connection.execute(
+        """
+        INSERT INTO tasks (
+            id, title, prompt, concepts, order_matters, reference_sql, hints, position
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            exercise.id,
+            exercise.title,
+            exercise.prompt,
+            json.dumps(exercise.concepts, ensure_ascii=False),
+            1 if exercise.order_matters else 0,
+            exercise.reference_sql,
+            json.dumps(exercise.hints, ensure_ascii=False),
+            position,
+        ),
+    )
+
+
+def _exercise_from_row(row: sqlite3.Row) -> Exercise:
+    return Exercise(
+        id=row["id"],
+        title=row["title"],
+        prompt=row["prompt"],
+        concepts=list(json.loads(row["concepts"])),
+        order_matters=bool(row["order_matters"]),
+        reference_sql=row["reference_sql"],
+        hints=list(json.loads(row["hints"])),
+        schema_name="practice",
+        dataset="Northline",
+        schema_text="",
+        table_names=(),
+        tables=(),
+    )
+
+
+def _resolve(db_path: Path | None) -> Path:
+    if db_path is None:
+        return Path(TASKS_DB)
+    return Path(db_path)
+
+
+@contextmanager
+def _session(db_path: Path | None):
+    connection = _connect(_resolve(db_path))
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
+
+
+def _connect(db_path: Path) -> sqlite3.Connection:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(db_path)
+    try:
+        connection.row_factory = sqlite3.Row
+        connection.execute(_SCHEMA)
+        _import_yaml(connection)
+        connection.commit()
+    except Exception:
+        connection.close()
+        raise
+    return connection
+
+
+def _import_yaml(connection: sqlite3.Connection) -> None:
+    # Legacy YAML stays on disk; each missing id is copied once, in filename order.
+    directory = Path(TASKS_DIR)
     if not directory.exists():
-        return set()
-    found: set[str] = set()
-    for path in directory.glob("*.yaml"):
-        match = FILE_ID.fullmatch(path.name)
-        if match:
-            found.add(match.group(1))
-    return found
+        return
+    existing = {row["id"] for row in connection.execute("SELECT id FROM tasks")}
+    for path in _numbered_yaml(directory):
+        payload = yaml.safe_load(path.read_text())
+        if isinstance(payload, dict) and payload.get("id") in existing:
+            continue
+        exercise = task_from_payload(payload)
+        if exercise.id in existing:
+            continue
+        _insert(connection, exercise)
+        existing.add(exercise.id)
 
 
-def _next_number(directory: Path) -> int:
-    numbers: list[int] = []
+def _numbered_yaml(directory: Path) -> list[Path]:
+    numbered: list[tuple[int, str, Path]] = []
     for path in directory.glob("*.yaml"):
-        match = FILE_NUMBER.match(path.name)
+        match = _YAML_NUMBER.fullmatch(path.name)
         if match:
-            numbers.append(int(match.group(1)))
-    return max(numbers, default=0) + 1
+            numbered.append((int(match.group(1)), path.name, path))
+    numbered.sort()
+    return [path for _number, _name, path in numbered]

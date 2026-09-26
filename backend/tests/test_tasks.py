@@ -1,3 +1,6 @@
+import json
+import sqlite3
+
 import pytest
 from fastapi import HTTPException
 
@@ -25,6 +28,24 @@ VALID = {
 def _drop(exercise_id: str) -> None:
     with catalog._lock:
         catalog._exercises[:] = [item for item in catalog._exercises if item.id != exercise_id]
+
+
+def _rows(db_path) -> list[dict]:
+    if not db_path.exists():
+        return []
+    connection = sqlite3.connect(db_path)
+    try:
+        connection.row_factory = sqlite3.Row
+        fetched = connection.execute(
+            """
+            SELECT id, title, prompt, concepts, order_matters, reference_sql, hints, position
+            FROM tasks
+            ORDER BY position
+            """
+        ).fetchall()
+        return [dict(row) for row in fetched]
+    finally:
+        connection.close()
 
 
 def test_task_from_payload_uses_the_practice_schema():
@@ -87,16 +108,27 @@ def test_concepts_accept_a_join_name_and_reject_an_empty_list():
 
 
 def test_save_and_load_roundtrip_keeps_creation_order(tmp_path):
-    save_task(task_from_payload(VALID), tmp_path)
-    save_task(task_from_payload({**VALID, "id": "idle-flags"}), tmp_path)
-    names = sorted(path.name for path in tmp_path.glob("*.yaml"))
-    assert names == ["0001-flagged-vessels.yaml", "0002-idle-flags.yaml"]
-    loaded = load_tasks(tmp_path)
+    db_path = tmp_path / "tasks.sqlite"
+    save_task(task_from_payload(VALID), db_path)
+    save_task(task_from_payload({**VALID, "id": "idle-flags"}), db_path)
+    rows = _rows(db_path)
+    assert [row["id"] for row in rows] == ["flagged-vessels", "idle-flags"]
+    assert [row["position"] for row in rows] == [1, 2]
+    assert json.loads(rows[0]["concepts"]) == ["filter"]
+    assert json.loads(rows[0]["hints"]) == VALID["hints"]
+    assert rows[0]["reference_sql"] == VALID["reference_sql"]
+    assert rows[0]["order_matters"] == 0
+    loaded = load_tasks(db_path)
     assert [item.id for item in loaded] == ["flagged-vessels", "idle-flags"]
     assert loaded[0].prompt == VALID["prompt"]
     assert loaded[0].hints == VALID["hints"]
+    assert loaded[0].schema_name == "practice"
+    assert loaded[0].dataset == "Northline"
+    assert list(tmp_path.glob("*.yaml")) == []
+    assert list(tmp_path.glob("*.json")) == []
     with pytest.raises(TaskError, match="already exists"):
-        save_task(task_from_payload(VALID), tmp_path)
+        save_task(task_from_payload(VALID), db_path)
+    assert [row["id"] for row in _rows(db_path)] == ["flagged-vessels", "idle-flags"]
 
 
 def test_accept_task_saves_after_the_reference_runs(tmp_path):
@@ -107,27 +139,31 @@ def test_accept_task_saves_after_the_reference_runs(tmp_path):
         seen["schema"] = schema
         return (["name"], [("North",)])
 
-    exercise = accept_task(VALID, set(), execute, tmp_path)
+    db_path = tmp_path / "tasks.sqlite"
+    exercise = accept_task(VALID, set(), execute, db_path)
     assert seen == {"sql": "SELECT name FROM vessels", "schema": "practice"}
-    assert load_tasks(tmp_path)[0].id == exercise.id
+    assert load_tasks(db_path)[0].id == exercise.id
+    assert _rows(db_path)[0]["reference_sql"] == "SELECT name FROM vessels"
 
 
 def test_accept_task_does_not_save_a_rejected_reference(tmp_path):
     def execute(sql, schema):
         raise QueryRejected('column "nope" does not exist')
 
+    db_path = tmp_path / "tasks.sqlite"
     with pytest.raises(TaskError, match="does not exist"):
-        accept_task(VALID, set(), execute, tmp_path)
-    assert list(tmp_path.glob("*.yaml")) == []
+        accept_task(VALID, set(), execute, db_path)
+    assert _rows(db_path) == []
 
 
 def test_accept_task_leaves_database_errors_alone(tmp_path):
     def execute(sql, schema):
         raise DatabaseUnavailable("Database is not reachable.")
 
+    db_path = tmp_path / "tasks.sqlite"
     with pytest.raises(DatabaseUnavailable):
-        accept_task(VALID, set(), execute, tmp_path)
-    assert list(tmp_path.glob("*.yaml")) == []
+        accept_task(VALID, set(), execute, db_path)
+    assert _rows(db_path) == []
 
 
 def test_accept_task_runs_against_practice_when_the_database_is_up(tmp_path):
@@ -135,22 +171,88 @@ def test_accept_task_runs_against_practice_when_the_database_is_up(tmp_path):
 
     if not ping():
         pytest.skip("database is down")
-    exercise = accept_task(VALID, set(), run_query, tmp_path)
+    db_path = tmp_path / "tasks.sqlite"
+    exercise = accept_task(VALID, set(), run_query, db_path)
     assert exercise.schema_name == "practice"
-    assert load_tasks(tmp_path)[0].reference_sql == "SELECT name FROM vessels"
+    assert load_tasks(db_path)[0].reference_sql == "SELECT name FROM vessels"
 
 
 def test_duplicate_known_id_skips_execution(tmp_path):
     def execute(sql, schema):
         raise AssertionError("should not run")
 
+    db_path = tmp_path / "tasks.sqlite"
     with pytest.raises(TaskError, match="already exists"):
-        accept_task(VALID, {"flagged-vessels"}, execute, tmp_path)
+        accept_task(VALID, {"flagged-vessels"}, execute, db_path)
+    assert _rows(db_path) == []
+
+
+def test_duplicate_stored_id_skips_execution(tmp_path):
+    db_path = tmp_path / "tasks.sqlite"
+    save_task(task_from_payload(VALID), db_path)
+
+    def execute(sql, schema):
+        raise AssertionError("should not run")
+
+    with pytest.raises(TaskError, match="already exists"):
+        accept_task(VALID, set(), execute, db_path)
+    assert [row["id"] for row in _rows(db_path)] == ["flagged-vessels"]
+
+
+def test_legacy_yaml_imports_once_in_filename_order(tmp_path, monkeypatch):
+    db_path = tmp_path / "tasks.sqlite"
+    empty = tmp_path / "empty"
+    legacy = tmp_path / "legacy"
+    empty.mkdir()
+    legacy.mkdir()
+    monkeypatch.setattr("app.tasks.TASKS_DIR", empty)
+    save_task(task_from_payload({**VALID, "title": "Already stored"}), db_path)
+
+    def write(name: str, exercise_id: str, title: str) -> None:
+        (legacy / name).write_text(
+            f"""\
+id: {exercise_id}
+title: {title}
+prompt: List the name of every vessel. Return one column named name.
+concepts:
+- filter
+order_matters: false
+reference_sql: SELECT name FROM vessels
+hints:
+- The vessels table has a name column.
+- Return that column for every row.
+- Do not filter the rows.
+"""
+        )
+
+    write("10-later-flags.yaml", "later-flags", "Later flags")
+    write("2-idle-flags.yaml", "idle-flags", "Idle flags")
+    write("1-flagged-vessels.yaml", "flagged-vessels", "Flagged vessels")
+    (legacy / "notes.yaml").write_text("not a task\n")
+    before = {path.name: path.read_bytes() for path in legacy.iterdir()}
+    monkeypatch.setattr("app.tasks.TASKS_DIR", legacy)
+
+    loaded = load_tasks(db_path)
+    assert [(item.id, item.title) for item in loaded] == [
+        ("flagged-vessels", "Already stored"),
+        ("idle-flags", "Idle flags"),
+        ("later-flags", "Later flags"),
+    ]
+    save_task(task_from_payload({**VALID, "id": "extra-flags", "title": "Extra flags"}), db_path)
+    assert [item.id for item in load_tasks(db_path)] == [
+        "flagged-vessels",
+        "idle-flags",
+        "later-flags",
+        "extra-flags",
+    ]
+    assert {path.name: path.read_bytes() for path in legacy.iterdir()} == before
     assert list(tmp_path.glob("*.yaml")) == []
+    assert list(tmp_path.glob("*.json")) == []
 
 
 def test_endpoint_creates_a_task_without_returning_the_reference(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.tasks.TASKS_DIR", tmp_path)
+    db_path = tmp_path / "tasks.sqlite"
+    monkeypatch.setattr("app.tasks.TASKS_DB", db_path)
     monkeypatch.setattr(
         "app.main.run_query",
         lambda sql, schema: (["name"], [("North",)]),
@@ -160,7 +262,11 @@ def test_endpoint_creates_a_task_without_returning_the_reference(monkeypatch, tm
         assert result["id"] == "flagged-vessels"
         assert result["dataset"] == "Northline"
         assert "reference_sql" not in result
-        assert (tmp_path / "0001-flagged-vessels.yaml").exists()
+        rows = _rows(db_path)
+        assert [row["id"] for row in rows] == ["flagged-vessels"]
+        assert rows[0]["reference_sql"] == "SELECT name FROM vessels"
+        assert json.loads(rows[0]["concepts"]) == ["filter"]
+        assert json.loads(rows[0]["hints"]) == VALID["hints"]
     finally:
         _drop("flagged-vessels")
 
