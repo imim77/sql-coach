@@ -1,5 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+
+declare const process: { env: { SQL_COACH_API?: string } };
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -15,7 +17,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      "/api": "http://127.0.0.1:8000",
+      "/api": process.env.SQL_COACH_API ?? "http://127.0.0.1:8000",
     },
   },
 });
