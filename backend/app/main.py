@@ -1,5 +1,9 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.catalog import (
@@ -251,3 +255,16 @@ def ask_exercise(exercise_id: str, body: AskBody):
         return ask_coach(exercise, body.sql, body.question)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="Ask a question first.") from exc
+
+
+def mount_frontend(application: FastAPI, directory: Path) -> None:
+    # Registered last so /api routes keep priority over the page files.
+    application.mount("/", StaticFiles(directory=directory, html=True), name="frontend")
+
+
+_static_dir = os.getenv("STATIC_DIR", "").strip()
+if _static_dir:
+    _static_path = Path(_static_dir)
+    if not _static_path.is_dir():
+        raise RuntimeError(f"STATIC_DIR does not exist: {_static_path}")
+    mount_frontend(app, _static_path)

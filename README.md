@@ -1,12 +1,45 @@
 # SQL Coach
 
-A local practice desk for SQL. You get an exercise, write a query in the browser, run it against Postgres, and check the result. A wrong answer can ask for a hint. The hint does not include the query. The reference query stays on the server until you choose Show solution.
+A local practice desk for SQL. You write a query in the browser, run it against Postgres, and check the result. The practice data is Northline: ports, vessels, voyages, cargo, and crew.
 
-The practice data is Northline, a short-sea cargo ledger: ports, vessels, voyages, cargo, and crew.
+## Run in one container
 
-## Run
+Install Docker. This image includes the page, the API, and the Northline database.
 
-Postgres is the only thing in Docker. The API and the page run on the host.
+```bash
+docker build -t sql-coach .
+docker run --rm -p 8000:8000 sql-coach
+```
+
+Open http://localhost:8000.
+
+If port 8000 is already in use, pick another host port: `-p 18080:8000`, then open http://localhost:18080.
+
+The database is created the first time the container starts. Keep it across restarts with a volume:
+
+```bash
+docker run --rm -p 8000:8000 -v sqlcoach-pg:/var/lib/postgresql/data sql-coach
+```
+
+Load Northline again by removing that volume and starting a new container:
+
+```bash
+docker volume rm sqlcoach-pg
+```
+
+Built-in exercises are in the image. A task you add, or a lesson the coach generates, stays in that container until you remove it.
+
+For model-written notes, pass the key when you start the container. Each exercise also has three saved notes, so Hint works without a key. The model is `gpt-6-luna` unless you set `OPENAI_MODEL`.
+
+```bash
+docker run --rm -p 8000:8000 -e OPENAI_API_KEY=sk-... sql-coach
+```
+
+Create a key at https://platform.openai.com/api-keys. The key stays in the container.
+
+## Run on the host
+
+Use this while changing the API or the page. Postgres runs in Docker. The API and the page run on your machine. You need Python 3 and Node.js.
 
 ```bash
 docker compose up -d
@@ -27,13 +60,11 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173.
+Open http://localhost:5173. The page sends `/api` to the API on port 8000.
 
-Set `OPENAI_API_KEY` in `backend/.env` if you want model-written notes. The key stays on the server. Hints use the OpenAI Responses API with `gpt-6-luna` unless you set `OPENAI_MODEL`. Without a key, Hint still works: each exercise has three saved notes. Create a key at https://platform.openai.com/api-keys.
+Put `OPENAI_API_KEY` in `backend/.env` for model-written notes. `backend/.env.example` has the database URLs the API expects.
 
-## Reset the database
-
-Init scripts run only when the volume is empty.
+Init scripts run when the Compose volume is empty. Load the practice data again with:
 
 ```bash
 docker compose down -v
@@ -42,34 +73,8 @@ docker compose up -d
 
 ## Checks
 
-```bash
-cd backend && source .venv/bin/activate && pytest
-```
-
-Your query and the hidden reference query both run as the read-only `student` role. A match compares the result, so another wording of the same query can pass. Column names and column order are part of the answer. Row order matters only when the exercise says so.
-
-The first ten exercises use the Northline tables. When you pass the last open exercise, the API writes another one in a new domain, creates its tables in Postgres, and adds it to the path. Later exercises stay locked until you pass the one before them. Generated lessons are saved in `backend/generated/`.
-
-## Add a task
-
-`POST /api/tasks` adds an exercise on the Northline `practice` schema. The server runs the reference query before saving it, and the response does not include that query.
+From `backend`, with the virtualenv active:
 
 ```bash
-curl -s -X POST http://localhost:8000/api/tasks \
-  -H 'content-type: application/json' \
-  -d '{
-    "id": "flagged-vessels",
-    "title": "Flagged vessels",
-    "prompt": "List the name of every vessel. Return one column named name.",
-    "concepts": ["filter"],
-    "order_matters": false,
-    "reference_sql": "SELECT name FROM vessels",
-    "hints": [
-      "The vessels table has a name column.",
-      "Return that column for every row.",
-      "Do not filter the rows."
-    ]
-  }'
+pytest
 ```
-
-A saved task is written under `backend/tasks/` and appears in `GET /api/exercises` after the built-in exercises. The id is a lowercase slug. There are exactly three hints, and neither the prompt nor a hint may contain a query.

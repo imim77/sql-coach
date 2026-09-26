@@ -1,0 +1,14 @@
+.git
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+**/.DS_Store
+frontend/node_modules
+frontend/dist
+backend/.env
+backend/tasks.sqlite
+backend/*.sqlite
+backend/generated
+backend/tasks
+node_modules
