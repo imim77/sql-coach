@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  askCoach,
   checkAnswer,
   continueExercises,
   fetchExercise,
@@ -14,7 +15,7 @@ import ExerciseSidebar from "./components/ExerciseSidebar";
 import ResultPane from "./components/ResultPane";
 import SqlEditor from "./components/SqlEditor";
 import TaskForm from "./components/TaskForm";
-import { EyeIcon, PlayIcon } from "lucide-react";
+import { PlayIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -26,7 +27,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import type { ExerciseDetail, ExerciseSummary, HintResponse, QueryResult } from "./types";
+import type {
+  AskResponse,
+  ExerciseDetail,
+  ExerciseSummary,
+  HintResponse,
+  QueryResult,
+} from "./types";
 
 const PASSED_KEY = "sql-coach-passed";
 
@@ -50,6 +57,9 @@ export default function App() {
   const [hint, setHint] = useState<HintResponse | null>(null);
   const [hintLevel, setHintLevel] = useState(0);
   const [solution, setSolution] = useState<string | null>(null);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<AskResponse | null>(null);
+  const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [listReady, setListReady] = useState(false);
@@ -76,6 +86,8 @@ export default function App() {
     setHint(null);
     setHintLevel(0);
     setSolution(null);
+    setQuestion("");
+    setAnswer(null);
     fetchExercise(exerciseId)
       .then((exercise) => {
         if (!cancelled) {
@@ -184,6 +196,19 @@ export default function App() {
     setTaskOpen(false);
   }
 
+  async function onAsk() {
+    if (!exerciseId || !sql.trim() || !question.trim() || asking) return;
+    setAsking(true);
+    setPageError(null);
+    try {
+      setAnswer(await askCoach(exerciseId, sql, question));
+    } catch (error: unknown) {
+      setPageError(messageOf(error));
+    } finally {
+      setAsking(false);
+    }
+  }
+
   async function onSolution() {
     if (!exerciseId || busy) return;
     setBusy(true);
@@ -253,12 +278,16 @@ export default function App() {
                 <Brief exercise={detail} />
               </div>
               <Separator />
-              <div className="max-h-64 shrink-0 overflow-auto">
+              <div className="max-h-96 shrink-0 overflow-auto">
                 <CoachSlip
                   hint={hint}
-                  solution={solution}
                   busy={busy}
-                  canHint={sql.trim().length > 0}
+                  canAsk={sql.trim().length > 0}
+                  asking={asking}
+                  answer={answer}
+                  question={question}
+                  onQuestion={setQuestion}
+                  onAsk={onAsk}
                   onHint={onHint}
                 />
               </div>
@@ -280,6 +309,25 @@ export default function App() {
                   <ResultPane result={result} />
                 </div>
               ) : null}
+              <div className="mx-3 my-2 shrink-0 rounded-lg border border-border">
+                {solution == null ? (
+                  <div className="px-2 py-1.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      disabled={busy || !exerciseId}
+                      onClick={onSolution}
+                    >
+                      Show solution
+                    </Button>
+                  </div>
+                ) : (
+                  <pre className="max-h-40 overflow-auto px-3 py-2 font-mono text-xs font-normal leading-5">
+                    {solution}
+                  </pre>
+                )}
+              </div>
               <Separator />
               <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2">
                 <Button type="button" disabled={busy || !sql.trim()} onClick={onCheck}>
@@ -288,10 +336,6 @@ export default function App() {
                 <Button type="button" variant="outline" disabled={busy || !sql.trim()} onClick={onRun}>
                   <PlayIcon data-icon="inline-start" />
                   Run
-                </Button>
-                <Button type="button" variant="outline" disabled={busy || solution != null} onClick={onSolution}>
-                  <EyeIcon data-icon="inline-start" />
-                  Show solution
                 </Button>
                 <span className="ml-auto text-xs text-muted-foreground">Ctrl/Cmd + Enter runs</span>
               </div>

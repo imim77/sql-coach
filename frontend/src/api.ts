@@ -1,4 +1,5 @@
 import type {
+  AskResponse,
   CreateTaskRequest,
   ExerciseDetail,
   ExerciseSummary,
@@ -79,5 +80,12 @@ export function continueExercises(afterId: string): Promise<ExerciseSummary[]> {
   return request("/api/exercises/continue", {
     method: "POST",
     body: JSON.stringify({ after_id: afterId }),
+  });
+}
+
+export function askCoach(id: string, sql: string, question: string): Promise<AskResponse> {
+  return request(`/api/exercises/${id}/ask`, {
+    method: "POST",
+    body: JSON.stringify({ sql, question }),
   });
 }

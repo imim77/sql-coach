@@ -13,22 +13,32 @@ import {
 } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader } from "@/components/ui/empty";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import type { HintResponse } from "@/types";
+import type { AskResponse, HintResponse } from "@/types";
+
+const questionClass =
+  "min-h-16 w-full resize-y rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm font-normal transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
 
 type CoachSlipProps = {
   hint: HintResponse | null;
-  solution: string | null;
   busy: boolean;
-  canHint: boolean;
+  canAsk: boolean;
+  asking: boolean;
+  answer: AskResponse | null;
+  question: string;
+  onQuestion: (value: string) => void;
+  onAsk: () => void;
   onHint: () => void;
 };
 
 export default function CoachSlip({
   hint,
-  solution,
   busy,
-  canHint,
+  canAsk,
+  asking,
+  answer,
+  question,
+  onQuestion,
+  onAsk,
   onHint,
 }: CoachSlipProps) {
   const [hinting, setHinting] = useState(false);
@@ -69,29 +79,45 @@ export default function CoachSlip({
             <Empty className="flex-none gap-0 border-0 p-0">
               <EmptyHeader>
                 <EmptyDescription>
-                  {canHint
+                  {canAsk
                     ? "Ask for a hint about the query you wrote."
                     : "Write a query on the right, then ask for a hint."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}
-          {solution != null ? (
-            <>
-              <Separator />
-              <div className="flex flex-col gap-2">
-                <div className="text-xs font-medium">Solution</div>
-                <pre className="overflow-auto rounded-lg bg-muted p-3 font-mono text-xs font-normal leading-5">
-                  {solution}
-                </pre>
-              </div>
-            </>
+          {answer ? (
+            <div className="flex flex-col gap-2">
+              <Badge variant="secondary">{answer.source === "coach" ? "Coach" : "Saved note"}</Badge>
+              <div className="rounded-lg bg-muted p-3 text-sm leading-relaxed">{answer.answer}</div>
+            </div>
           ) : null}
         </CardContent>
-        <CardFooter className="flex-wrap gap-2">
+        <CardFooter className="flex-col items-stretch gap-3">
+          <label className="flex flex-col gap-2 text-sm font-medium" htmlFor="coach-question">
+            Ask the coach
+            <textarea
+              id="coach-question"
+              rows={3}
+              value={question}
+              placeholder="What do you want the result to show?"
+              onChange={(event) => onQuestion(event.target.value)}
+              className={questionClass}
+            />
+          </label>
           <Button
             type="button"
-            disabled={!canHint || busy}
+            className="self-start"
+            disabled={!canAsk || busy || asking || question.trim().length === 0}
+            onClick={onAsk}
+          >
+            {asking ? <Loader2Icon data-icon="inline-start" className="animate-spin" /> : null}
+            Ask
+          </Button>
+          <Button
+            type="button"
+            className="self-start"
+            disabled={!canAsk || busy}
             onClick={() => {
               setHinting(true);
               onHint();

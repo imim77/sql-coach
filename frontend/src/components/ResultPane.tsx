@@ -63,7 +63,7 @@ export default function ResultPane({ result }: { result: QueryResult | null }) {
       ) : null}
       {plan ? (
         <>
-          <QueryPlan mermaidSource={plan.mermaid} />
+          <QueryPlan mermaidSource={plan.mermaid} frames={plan.frames} />
           <ol className="flex list-decimal flex-col gap-2 pl-5 font-sans text-sm leading-relaxed">
             {plan.steps.map((step, index) => (
               <li key={`${step.op}-${index}`} className="list-item">

@@ -46,11 +46,25 @@ export type QueryResult = {
   plan?: {
     steps: { op: string; label: string; detail: string }[];
     mermaid: string;
+    frames?: {
+      op: string;
+      label: string;
+      detail: string;
+      row_count?: number | null;
+      dropped?: number | null;
+      columns?: string[] | null;
+      rows?: unknown[][] | null;
+    }[];
   } | null;
 };
 
 export type HintResponse = QueryResult & {
   note: string;
   level: number;
+  source: "coach" | "notes";
+};
+
+export type AskResponse = {
+  answer: string;
   source: "coach" | "notes";
 };

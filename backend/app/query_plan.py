@@ -1,4 +1,6 @@
 import re
+from datetime import date, datetime
+from decimal import Decimal
 
 _KEYWORD = re.compile(
     r"\b(SELECT|FROM|WHERE|GROUP\s+BY|HAVING|ORDER\s+BY|LIMIT|"
@@ -18,6 +20,75 @@ def explain_query(sql: str) -> dict:
     clauses = _clauses(sql)
     steps = _steps(clauses)
     return {"steps": steps, "mermaid": _mermaid(steps)}
+
+
+def illustrate_query(sql: str, execute) -> list[dict]:
+    """execute(statement: str) -> tuple[list[str], list[tuple]]
+    One frame per explain_query step, same order.
+    """
+    clauses = _clauses(sql)
+    steps = explain_query(sql)["steps"]
+    from_text = next((text for label, text in clauses if label == "FROM"), "")
+    join_texts = [text for label, text in clauses if label.endswith("JOIN")]
+    where_text = next((text for label, text in clauses if label == "WHERE"), "")
+    limit_text = next((text for label, text in clauses if label == "LIMIT"), "")
+    frames: list[dict] = []
+    seen_joins = 0
+    carried_count: int | None = None
+    carried_columns: list[str] = []
+    carried_rows: list[list] = []
+    for step in steps:
+        op = step["op"]
+        failed = False
+        if op in {"from", "join", "where"}:
+            included = join_texts[:seen_joins]
+            if op == "join":
+                included = join_texts[: seen_joins + 1]
+                seen_joins += 1
+            partial = _partial_read(from_text, included, where_text, op == "where")
+            snapshot = _snapshot(execute, partial)
+            if snapshot is None:
+                failed = True
+                row_count, columns, rows = None, [], []
+            else:
+                row_count, columns, rows = snapshot
+            dropped = _dropped(op, carried_count, row_count)
+        elif op == "limit":
+            parsed = _limit_number(limit_text)
+            columns = list(carried_columns)
+            if parsed is None:
+                row_count = carried_count
+                rows = [list(row) for row in carried_rows]
+                dropped = None
+            else:
+                row_count = parsed if carried_count is None else min(carried_count, parsed)
+                rows = [list(row) for row in carried_rows[:parsed]]
+                dropped = _dropped("limit", carried_count, row_count)
+        else:
+            row_count = carried_count
+            columns = list(carried_columns)
+            rows = [list(row) for row in carried_rows]
+            dropped = None
+        frames.append(
+            {
+                "op": op,
+                "label": step["label"],
+                "detail": step["detail"],
+                "row_count": row_count,
+                "dropped": dropped,
+                "columns": columns,
+                "rows": rows,
+            }
+        )
+        if failed:
+            carried_count = None
+            carried_columns = []
+            carried_rows = []
+        else:
+            carried_count = row_count
+            carried_columns = list(columns)
+            carried_rows = [list(row) for row in rows]
+    return frames
 
 
 def _clauses(sql: str) -> list[tuple[str, str]]:
@@ -192,6 +263,81 @@ def _mermaid_text(value: str) -> str:
             part.replace("&", "&amp;").replace('"', "'").replace("<", "&lt;").replace(">", "&gt;")
         )
     return "<br/>".join(chunks)
+
+
+def _partial_read(
+    from_text: str, join_texts: list[str], where_text: str, include_where: bool
+) -> str:
+    parts = ["SELECT *"]
+    if from_text:
+        parts.append(from_text)
+    parts.extend(text for text in join_texts if text)
+    if include_where and where_text:
+        parts.append(where_text)
+    return " ".join(parts)
+
+
+def _snapshot(execute, partial: str) -> tuple[int | None, list[str], list[list]] | None:
+    try:
+        _, count_rows = execute(f"SELECT count(*) FROM ({partial}) AS step_rows")
+        columns, sample_rows = execute(f"SELECT * FROM ({partial}) AS step_rows LIMIT 3")
+    except Exception:
+        return None
+    row_count = None
+    try:
+        if count_rows and count_rows[0]:
+            row_count = _count_value(count_rows[0][0])
+    except Exception:
+        row_count = None
+    try:
+        plain_columns = [str(column) for column in columns]
+        plain_rows = [[_plain(value) for value in row] for row in list(sample_rows)[:3]]
+    except Exception:
+        return None
+    return row_count, plain_columns, plain_rows
+
+
+def _dropped(op: str, previous: int | None, current: int | None) -> int | None:
+    if op not in {"join", "where", "having", "limit"}:
+        return None
+    if previous is None or current is None or current >= previous:
+        return None
+    return previous - current
+
+
+def _limit_number(limit_text: str) -> int | None:
+    match = re.match(r"(?i)LIMIT\s+(\d+)\b", limit_text.strip())
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def _count_value(value: object) -> int | None:
+    plain = _plain(value)
+    if isinstance(plain, int) and not isinstance(plain, bool):
+        return plain
+    if isinstance(plain, str):
+        try:
+            return int(plain.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _plain(value: object):
+    if value is None or isinstance(value, str):
+        return value
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value) if value.is_integer() else str(value)
+    if isinstance(value, Decimal):
+        return int(value) if value == value.to_integral_value() else format(value, "f")
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return str(value)
 
 
 def _mask(sql: str) -> str:

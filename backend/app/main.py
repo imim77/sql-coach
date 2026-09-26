@@ -9,13 +9,13 @@ from app.catalog import (
     list_exercises as catalog_exercises,
     summaries,
 )
-from app.coach import coach_note
+from app.coach import ask_coach, coach_note
 from app.config import OPENAI_API_KEY, STUDENT_DATABASE_URL
 from app.db import DatabaseUnavailable, json_row, ping, run_query, schema_preview
 from app.exercises import detail, summary
 from app.grader import compare
 from app.lesson_gen import LessonError, ensure_installed
-from app.query_plan import plan_for_correct_answer
+from app.query_plan import illustrate_query, plan_for_correct_answer
 from app.referenced_tables import referenced_tables
 from app.sql_guard import QueryRejected
 from app.tasks import TaskError, accept_task
@@ -191,12 +191,21 @@ def run_exercise(exercise_id: str, body: SqlBody):
 
 @app.post("/api/exercises/{exercise_id}/check")
 def check_exercise(exercise_id: str, body: SqlBody):
-    outcome = _grade(_exercise_or_404(exercise_id), body.sql)
+    exercise = _exercise_or_404(exercise_id)
+    outcome = _grade(exercise, body.sql)
     if outcome.get("error"):
         return outcome
     if outcome.get("correct") is not True:
         return outcome
     outcome["plan"] = plan_for_correct_answer(True, body.sql)
+    plan = outcome["plan"]
+    try:
+        plan["frames"] = illustrate_query(
+            body.sql,
+            lambda statement: run_query(statement, exercise.schema_name),
+        )
+    except Exception:
+        plan["frames"] = []
     return outcome
 
 
@@ -228,3 +237,17 @@ def hint_exercise(exercise_id: str, body: HintBody):
 def show_solution(exercise_id: str):
     exercise = _exercise_or_404(exercise_id)
     return {"reference_sql": exercise.reference_sql}
+
+
+class AskBody(BaseModel):
+    sql: str = ""
+    question: str
+
+
+@app.post("/api/exercises/{exercise_id}/ask")
+def ask_exercise(exercise_id: str, body: AskBody):
+    exercise = _exercise_or_404(exercise_id)
+    try:
+        return ask_coach(exercise, body.sql, body.question)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Ask a question first.") from exc
