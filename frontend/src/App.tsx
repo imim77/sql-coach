@@ -5,7 +5,6 @@ import {
   fetchExercise,
   fetchExercises,
   fetchHint,
-  fetchSolution,
   runQuery,
 } from "./api";
 import Brief from "./components/Brief";
@@ -167,19 +166,6 @@ export default function App() {
     }
   }
 
-  async function onSolution() {
-    if (!exerciseId || busy) return;
-    setBusy(true);
-    try {
-      const response = await fetchSolution(exerciseId);
-      setSolution(response.reference_sql);
-    } catch (error: unknown) {
-      setPageError(messageOf(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   if (pageError && exercises.length === 0) {
     return (
       <main className="mx-auto flex max-w-lg flex-col gap-4 px-6 py-16">
@@ -256,7 +242,6 @@ export default function App() {
                 busy={busy}
                 canHint={sql.trim().length > 0}
                 onHint={onHint}
-                onSolution={onSolution}
               />
             </div>
           </div>
