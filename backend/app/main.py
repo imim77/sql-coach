@@ -15,6 +15,7 @@ from app.db import DatabaseUnavailable, json_row, ping, run_query, schema_previe
 from app.exercises import detail, summary
 from app.grader import compare
 from app.lesson_gen import LessonError, ensure_installed
+from app.referenced_tables import referenced_tables
 from app.sql_guard import QueryRejected
 from app.tasks import TaskError, accept_task
 
@@ -26,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_schema_cache: dict[str, list[dict]] = {}
+_schema_cache: dict[tuple[str, tuple[str, ...]], list[dict]] = {}
 
 
 class SqlBody(BaseModel):
@@ -67,17 +68,23 @@ def _prepare(exercise):
 
 
 def _schema(exercise) -> list[dict]:
-    cached = _schema_cache.get(exercise.schema_name)
+    names = exercise.table_names or referenced_tables(exercise.reference_sql)
+    if not names:
+        # Not cached. A schema-wide entry would be served for a later narrower list.
+        try:
+            return schema_preview(exercise.schema_name, None)
+        except DatabaseUnavailable as exc:
+            raise HTTPException(status_code=503, detail=exc.message) from exc
+
+    key = (exercise.schema_name, tuple(names))
+    cached = _schema_cache.get(key)
     if cached is not None:
         return cached
     try:
-        preview = schema_preview(
-            exercise.schema_name,
-            list(exercise.table_names) or None,
-        )
+        preview = schema_preview(exercise.schema_name, list(names))
     except DatabaseUnavailable as exc:
         raise HTTPException(status_code=503, detail=exc.message) from exc
-    _schema_cache[exercise.schema_name] = preview
+    _schema_cache[key] = preview
     return preview
 
 

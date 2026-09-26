@@ -4,6 +4,7 @@ from pathlib import Path
 import yaml
 
 from app.config import EXERCISES_DIR
+from app.referenced_tables import referenced_tables
 
 
 @dataclass(frozen=True)
@@ -53,11 +54,13 @@ def load_exercises(directory: Path = EXERCISES_DIR) -> list[Exercise]:
 
 
 def summary(exercise: Exercise) -> dict:
+    names = exercise.table_names or referenced_tables(exercise.reference_sql)
     return {
         "id": exercise.id,
         "title": exercise.title,
         "concepts": exercise.concepts,
         "dataset": exercise.dataset,
+        "tables": list(names),
     }
 
 
