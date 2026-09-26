@@ -123,7 +123,7 @@ export default function TaskForm({ onCreated }: TaskFormProps) {
           value={referenceSql}
           onChange={(event) => setReferenceSql(event.target.value)}
           spellCheck={false}
-          className="min-h-28"
+          className="min-h-28 font-mono"
         />
       </div>
       {([0, 1, 2] as const).map((index) => (

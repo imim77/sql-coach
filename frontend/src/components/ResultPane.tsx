@@ -48,7 +48,7 @@ export default function ResultPane({ result }: { result: QueryResult | null }) {
         <Alert variant="destructive">
           <AlertTitle>Postgres rejected the query.</AlertTitle>
           <AlertDescription>
-            <span className="font-mono">{result.error}</span>
+            <span className="font-mono font-normal">{result.error}</span>
           </AlertDescription>
         </Alert>
       ) : null}
@@ -69,11 +69,11 @@ export default function ResultPane({ result }: { result: QueryResult | null }) {
         </Alert>
       ) : null}
       {showTable && columns && rows ? (
-        <Table className="font-mono text-sm">
+        <Table className="font-mono text-sm font-normal">
           <TableHeader>
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={column} className="text-xs">
+                <TableHead key={column} className="font-mono text-xs font-normal">
                   {column}
                 </TableHead>
               ))}
@@ -90,7 +90,7 @@ export default function ResultPane({ result }: { result: QueryResult | null }) {
           </TableBody>
         </Table>
       ) : null}
-      {showNoRows ? <p className="font-mono text-sm">No rows.</p> : null}
+      {showNoRows ? <p className="font-mono text-sm font-normal">No rows.</p> : null}
     </section>
   );
 }

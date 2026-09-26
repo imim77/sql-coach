@@ -39,14 +39,14 @@ export default function CoachSlip({
 
   return (
     <aside className="flex min-h-0 min-w-0 flex-col">
-      <Card className="rounded-none border-0 shadow-none ring-0">
+      <Card className="rounded-none border-0 ring-0">
         <CardHeader>
           <div className="flex items-center gap-3">
             <Avatar className="size-8">
               <AvatarFallback>C</AvatarFallback>
             </Avatar>
             <div className="flex min-w-0 flex-col gap-1">
-              <CardTitle>Coach</CardTitle>
+              <CardTitle className="font-normal">Coach</CardTitle>
               <CardDescription>
                 A hint explains the result. It never includes the query.
               </CardDescription>
@@ -81,7 +81,7 @@ export default function CoachSlip({
               <Separator />
               <div className="flex flex-col gap-2">
                 <div className="text-xs font-medium">Solution</div>
-                <pre className="overflow-auto rounded-lg bg-muted p-3 font-mono text-xs leading-5">
+                <pre className="overflow-auto rounded-lg bg-muted p-3 font-mono text-xs font-normal leading-5">
                   {solution}
                 </pre>
               </div>

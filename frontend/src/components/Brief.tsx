@@ -4,7 +4,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -27,11 +26,11 @@ function renderCell(value: unknown) {
 
 function SampleTable({ table }: { table: TablePreview }) {
   return (
-    <Table className="font-mono text-sm">
+    <Table className="font-mono text-sm font-normal">
       <TableHeader>
         <TableRow>
           {table.sample_columns.map((column) => (
-            <TableHead key={column} className="text-xs">
+            <TableHead key={column} className="font-mono text-xs font-normal">
               {column}
             </TableHead>
           ))}
@@ -57,10 +56,6 @@ export default function Brief({ exercise }: { exercise: ExerciseDetail | null })
         <div className="flex flex-col gap-3">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-8 w-2/3" />
-          <div className="flex gap-2">
-            <Skeleton className="h-5 w-16" />
-            <Skeleton className="h-5 w-20" />
-          </div>
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-5/6" />
         </div>
@@ -73,15 +68,14 @@ export default function Brief({ exercise }: { exercise: ExerciseDetail | null })
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4">
           <p className="font-mono text-xs text-muted-foreground">{exercise.dataset}</p>
-          <h1 className="font-display text-2xl tracking-tight">{exercise.title}</h1>
-          <div className="flex flex-wrap gap-2">
-            {exercise.concepts.map((concept) => (
-              <Badge key={concept} variant="secondary">
-                {concept}
-              </Badge>
-            ))}
-          </div>
+          <h1 className="font-display text-2xl font-normal tracking-tight">{exercise.title}</h1>
         </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignment</CardTitle>
+          </CardHeader>
+          <CardContent className="whitespace-pre-wrap">{exercise.prompt}</CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle>Tables</CardTitle>
@@ -92,32 +86,16 @@ export default function Brief({ exercise }: { exercise: ExerciseDetail | null })
               {exercise.schema.map((table) => (
                 <AccordionItem key={table.name} value={table.name}>
                   <AccordionTrigger>
-                    <span className="font-mono">{table.name}</span>
+                    <span className="font-mono font-normal">{table.name}</span>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="flex flex-col gap-3">
-                      <ul className="flex flex-col gap-1 font-mono text-muted-foreground">
-                        {table.columns.map((column) => (
-                          <li key={column.name}>
-                            {column.name} {column.data_type}
-                            {column.nullable ? " null" : ""}
-                          </li>
-                        ))}
-                      </ul>
-                      <SampleTable table={table} />
-                    </div>
+                    <SampleTable table={table} />
                   </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
           ) : null}
           </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Assignment</CardTitle>
-          </CardHeader>
-          <CardContent className="whitespace-pre-wrap">{exercise.prompt}</CardContent>
         </Card>
       </div>
     </section>

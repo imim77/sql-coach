@@ -55,14 +55,13 @@ export default function ExerciseSidebar({
 }: ExerciseSidebarProps) {
   const current = exercises[index];
   const dataset = current?.dataset ?? "Northline";
-  const concepts = current?.concepts ?? [];
   const nextLocked = index < exercises.length - 1 && index >= openThrough;
 
   return (
     <Sidebar>
       <SidebarHeader>
         <div className="flex flex-col gap-1 px-2">
-          <p className="font-display">SQL Coach</p>
+          <p className="font-sans text-base font-normal tracking-tight text-primary">SQL Coach</p>
           <p className="truncate text-xs text-sidebar-foreground/70">{dataset}</p>
         </div>
       </SidebarHeader>
@@ -71,11 +70,6 @@ export default function ExerciseSidebar({
         <ScrollArea className="h-full min-h-0">
           <SidebarGroup>
             <SidebarGroupLabel>Exercises</SidebarGroupLabel>
-            {concepts.length > 0 ? (
-              <p className="truncate px-2 text-xs text-sidebar-foreground/70" title={concepts.join(", ")}>
-                {concepts.join(" · ")}
-              </p>
-            ) : null}
             <SidebarGroupContent>
               <SidebarMenu>
                 {loading

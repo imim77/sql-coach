@@ -16,10 +16,10 @@ monaco.editor.defineTheme("northline", {
   inherit: true,
   rules: [],
   colors: {
-    "editor.background": "#F7FBFC",
-    "editor.foreground": "#0E2A33",
-    "editorLineNumber.foreground": "#8AA0A8",
-    "editor.selectionBackground": "#D3E4EA",
-    "editorCursor.foreground": "#163A4A",
+    "editor.background": "#fafaf7",
+    "editor.foreground": "#26251e",
+    "editorLineNumber.foreground": "#a09c92",
+    "editor.selectionBackground": "#e6e5e0",
+    "editorCursor.foreground": "#f54e00",
   },
 });

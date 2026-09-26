@@ -199,15 +199,15 @@ export default function App() {
 
   if (pageError && exercises.length === 0) {
     return (
-      <main className="mx-auto flex max-w-lg flex-col gap-4 px-6 py-16">
-        <h1 className="font-display text-3xl">SQL Coach</h1>
+      <main className="mx-auto flex max-w-lg flex-col gap-4 bg-background px-6 py-16 font-sans">
+        <h1 className="font-sans text-3xl font-normal tracking-tight text-primary">SQL Coach</h1>
         <p className="text-sm leading-relaxed">{pageError}</p>
       </main>
     );
   }
 
   return (
-    <SidebarProvider className="h-svh overflow-hidden">
+    <SidebarProvider className="h-svh overflow-hidden bg-background font-sans">
         <ExerciseSidebar
           exercises={exercises}
           index={index}
@@ -233,12 +233,14 @@ export default function App() {
             <TaskForm onCreated={onTaskCreated} />
           </SheetContent>
         </Sheet>
-        <SidebarInset className="min-h-0 overflow-hidden">
+        <SidebarInset className="min-h-0 overflow-hidden bg-background shadow-none md:peer-data-[variant=inset]:shadow-none">
           <div className="flex min-h-0 flex-1 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
-            <section className="flex min-h-0 min-w-0 flex-col border-b lg:w-1/2 lg:border-r lg:border-b-0">
-              <div className="flex shrink-0 items-center gap-2 px-2 py-1 lg:hidden">
+            <section className="flex min-h-0 min-w-0 flex-col border-b border-border lg:w-1/2 lg:border-r lg:border-b-0">
+              <div className="flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-1 lg:hidden">
                 <SidebarTrigger />
-                <p className="truncate text-sm font-medium">SQL Coach</p>
+                <p className="truncate font-sans text-sm font-normal tracking-tight text-primary">
+                  SQL Coach
+                </p>
               </div>
               {pageError ? (
                 <div className="shrink-0 px-4 pt-3">
@@ -262,7 +264,7 @@ export default function App() {
               </div>
             </section>
             <section className="flex min-h-[28rem] min-w-0 flex-1 flex-col lg:min-h-0">
-              <div className="flex h-9 shrink-0 items-end border-b px-2">
+              <div className="flex h-9 shrink-0 items-end border-b border-border bg-background px-2">
                 <SidebarTrigger className="mb-0.5 max-lg:hidden" />
                 <p className="border-b-2 border-foreground px-3 py-1.5 font-mono text-xs">
                   {exerciseId ? `${exerciseId}.sql` : "query.sql"}
@@ -274,7 +276,7 @@ export default function App() {
                 ) : null}
               </div>
               {result ? (
-                <div className="max-h-[40%] shrink-0 overflow-auto border-t">
+                <div className="max-h-[40%] shrink-0 overflow-auto border-t border-border">
                   <ResultPane result={result} />
                 </div>
               ) : null}
