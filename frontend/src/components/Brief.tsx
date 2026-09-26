@@ -5,6 +5,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -69,19 +70,23 @@ export default function Brief({ exercise }: { exercise: ExerciseDetail | null })
 
   return (
     <section className="min-h-0 min-w-0 overflow-auto">
-      <div className="flex flex-col gap-4">
-        <p className="font-mono text-xs text-muted-foreground">{exercise.dataset}</p>
-        <h1 className="font-display text-2xl tracking-tight">{exercise.title}</h1>
-        <div className="flex flex-wrap gap-2">
-          {exercise.concepts.map((concept) => (
-            <Badge key={concept} variant="secondary">
-              {concept}
-            </Badge>
-          ))}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
+          <p className="font-mono text-xs text-muted-foreground">{exercise.dataset}</p>
+          <h1 className="font-display text-2xl tracking-tight">{exercise.title}</h1>
+          <div className="flex flex-wrap gap-2">
+            {exercise.concepts.map((concept) => (
+              <Badge key={concept} variant="secondary">
+                {concept}
+              </Badge>
+            ))}
+          </div>
         </div>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{exercise.prompt}</p>
-        <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium">Tables</h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Tables</CardTitle>
+          </CardHeader>
+          <CardContent>
           {exercise.schema.length > 0 ? (
             <Accordion defaultValue={[exercise.schema[0].name]}>
               {exercise.schema.map((table) => (
@@ -106,7 +111,14 @@ export default function Brief({ exercise }: { exercise: ExerciseDetail | null })
               ))}
             </Accordion>
           ) : null}
-        </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignment</CardTitle>
+          </CardHeader>
+          <CardContent className="whitespace-pre-wrap">{exercise.prompt}</CardContent>
+        </Card>
       </div>
     </section>
   );

@@ -22,7 +22,6 @@ type CoachSlipProps = {
   busy: boolean;
   canHint: boolean;
   onHint: () => void;
-  onSolution: () => void;
 };
 
 export default function CoachSlip({
@@ -31,7 +30,6 @@ export default function CoachSlip({
   busy,
   canHint,
   onHint,
-  onSolution,
 }: CoachSlipProps) {
   const [hinting, setHinting] = useState(false);
 
@@ -41,7 +39,7 @@ export default function CoachSlip({
 
   return (
     <aside className="flex min-h-0 min-w-0 flex-col">
-      <Card className="min-h-0 flex-1">
+      <Card className="rounded-none border-0 shadow-none ring-0">
         <CardHeader>
           <div className="flex items-center gap-3">
             <Avatar className="size-8">
@@ -50,7 +48,7 @@ export default function CoachSlip({
             <div className="flex min-w-0 flex-col gap-1">
               <CardTitle>Coach</CardTitle>
               <CardDescription>
-                A note on what the result is doing. It never includes the query.
+                A hint explains the result. It never includes the query.
               </CardDescription>
             </div>
           </div>
@@ -68,9 +66,13 @@ export default function CoachSlip({
               <div className="rounded-lg bg-muted p-3 text-sm leading-relaxed">{hint.note}</div>
             </div>
           ) : (
-            <Empty>
+            <Empty className="flex-none gap-0 border-0 p-0">
               <EmptyHeader>
-                <EmptyDescription>Run a query, then ask for a note.</EmptyDescription>
+                <EmptyDescription>
+                  {canHint
+                    ? "Ask for a hint about the query you wrote."
+                    : "Write a query on the right, then ask for a hint."}
+                </EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}
@@ -96,13 +98,8 @@ export default function CoachSlip({
             }}
           >
             {hinting ? <Loader2Icon data-icon="inline-start" className="animate-spin" /> : null}
-            Hint
+            Ask for a hint
           </Button>
-          {solution == null ? (
-            <Button type="button" variant="ghost" disabled={busy} onClick={onSolution}>
-              Show solution
-            </Button>
-          ) : null}
         </CardFooter>
       </Card>
     </aside>
