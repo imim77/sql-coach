@@ -256,7 +256,6 @@ export default function App() {
                 busy={busy}
                 canHint={sql.trim().length > 0}
                 onHint={onHint}
-                onSolution={onSolution}
               />
             </div>
           </div>
