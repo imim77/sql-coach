@@ -216,11 +216,23 @@ export default function App() {
               </Alert>
             </div>
           ) : null}
-          <div className="grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-auto p-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-auto p-3 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden">
             <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
-              <div className="min-w-0 overflow-auto lg:max-h-[28rem] lg:shrink-0">
+              <div className="min-h-0 flex-1 overflow-auto">
                 <Brief exercise={detail} />
               </div>
+              <Separator />
+              <div className="max-h-64 shrink-0 overflow-auto">
+                <CoachSlip
+                  hint={hint}
+                  solution={solution}
+                  busy={busy}
+                  canHint={sql.trim().length > 0}
+                  onHint={onHint}
+                />
+              </div>
+            </div>
+            <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
               <section className="flex min-h-72 min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card lg:min-h-0 lg:flex-1">
                 <div className="min-h-48 flex-1 lg:min-h-0">
                   {exerciseId ? (
@@ -249,14 +261,6 @@ export default function App() {
                 <ResultPane result={result} />
               </div>
             </div>
-            <div className="min-w-0 lg:min-h-0 lg:overflow-auto">
-              <CoachSlip
-                hint={hint}
-                solution={solution}
-                busy={busy}
-                canHint={sql.trim().length > 0}
-                onHint={onHint}
-              />
             </div>
           </div>
         </SidebarInset>
