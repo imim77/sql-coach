@@ -216,9 +216,9 @@ export default function App() {
               </Alert>
             </div>
           ) : null}
-          <div className="grid min-h-0 flex-1 grid-cols-1 content-start gap-3 overflow-auto p-3 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:overflow-hidden">
-            <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
-              <div className="min-h-0 flex-1 overflow-auto">
+          <div className="flex min-h-0 flex-1 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
+            <section className="flex min-h-0 min-w-0 flex-col border-b lg:w-1/2 lg:border-r lg:border-b-0">
+              <div className="min-h-0 flex-1 overflow-auto px-4 py-4">
                 <Brief exercise={detail} />
               </div>
               <Separator />
@@ -231,37 +231,27 @@ export default function App() {
                   onHint={onHint}
                 />
               </div>
-            </div>
-            <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
-              <section className="flex min-h-72 min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card lg:min-h-0 lg:flex-1">
-                <div className="min-h-48 flex-1 lg:min-h-0">
-                  {exerciseId ? (
-                    <SqlEditor exerciseId={exerciseId} sql={sql} onChange={setSql} onRun={onRun} />
-                  ) : null}
-                </div>
-                <Separator />
-                <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2">
-                  <Button type="button" disabled={busy || !sql.trim()} onClick={onRun}>
-                    Run
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={busy || !sql.trim()}
-                    onClick={onCheck}
-                  >
-                    Check answer
-                  </Button>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    Ctrl/Cmd + Enter runs
-                  </span>
-                </div>
-              </section>
-              <div className="min-w-0 lg:min-h-32 lg:flex-1 lg:overflow-auto">
+            </section>
+            <section className="flex min-h-[28rem] min-w-0 flex-1 flex-col lg:min-h-0">
+              <div className="min-h-48 flex-1">
+                {exerciseId ? (
+                  <SqlEditor exerciseId={exerciseId} sql={sql} onChange={setSql} onRun={onRun} />
+                ) : null}
+              </div>
+              <div className="max-h-[40%] min-h-32 shrink-0 overflow-auto border-t">
                 <ResultPane result={result} />
               </div>
-            </div>
-            </div>
+              <Separator />
+              <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2">
+                <Button type="button" disabled={busy || !sql.trim()} onClick={onRun}>
+                  Run
+                </Button>
+                <Button type="button" variant="outline" disabled={busy || !sql.trim()} onClick={onCheck}>
+                  Check answer
+                </Button>
+                <span className="ml-auto text-xs text-muted-foreground">Ctrl/Cmd + Enter runs</span>
+              </div>
+            </section>
           </div>
         </SidebarInset>
       </SidebarProvider>
