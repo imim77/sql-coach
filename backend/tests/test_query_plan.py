@@ -135,6 +135,19 @@ def test_limit_frame_uses_the_parsed_limit():
     assert having["dropped"] is None
 
 
+def test_selected_columns_are_empty_until_the_select_step():
+    def execute(statement: str):
+        if statement.startswith("SELECT count(*)"):
+            return ["count"], [(1,)]
+        return ["name", "year_built"], [("Ada", 2012)]
+
+    frames = illustrate_query("SELECT name FROM vessels WHERE year_built > 2010", execute)
+    assert [frame["op"] for frame in frames] == ["from", "where", "select"]
+    assert frames[0]["selected_columns"] == []
+    assert frames[1]["selected_columns"] == []
+    assert frames[2]["selected_columns"] == ["name"]
+
+
 def test_illustrate_query_does_not_raise_when_execute_fails():
     class DatabaseError(Exception):
         pass

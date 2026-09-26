@@ -53,6 +53,7 @@ export type QueryResult = {
       row_count?: number | null;
       dropped?: number | null;
       columns?: string[] | null;
+      selected_columns?: string[] | null;
       rows?: unknown[][] | null;
     }[];
   } | null;

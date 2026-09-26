@@ -32,8 +32,11 @@ def illustrate_query(sql: str, execute) -> list[dict]:
     join_texts = [text for label, text in clauses if label.endswith("JOIN")]
     where_text = next((text for label, text in clauses if label == "WHERE"), "")
     limit_text = next((text for label, text in clauses if label == "LIMIT"), "")
+    select_text = next((text for label, text in clauses if label == "SELECT"), "")
+    selected_columns = _selected_columns(select_text)
     frames: list[dict] = []
     seen_joins = 0
+    past_select = False
     carried_count: int | None = None
     carried_columns: list[str] = []
     carried_rows: list[list] = []
@@ -69,6 +72,8 @@ def illustrate_query(sql: str, execute) -> list[dict]:
             columns = list(carried_columns)
             rows = [list(row) for row in carried_rows]
             dropped = None
+        if op == "select":
+            past_select = True
         frames.append(
             {
                 "op": op,
@@ -78,6 +83,7 @@ def illustrate_query(sql: str, execute) -> list[dict]:
                 "dropped": dropped,
                 "columns": columns,
                 "rows": rows,
+                "selected_columns": list(selected_columns) if past_select else [],
             }
         )
         if failed:
@@ -263,6 +269,39 @@ def _mermaid_text(value: str) -> str:
             part.replace("&", "&amp;").replace('"', "'").replace("<", "&lt;").replace(">", "&gt;")
         )
     return "<br/>".join(chunks)
+
+
+def _selected_columns(select_text: str) -> list[str]:
+    body = re.sub(r"(?i)^SELECT\s+(?:DISTINCT\s+)?", "", select_text).strip()
+    masked = _mask(body)
+    columns: list[str] = []
+    index = 0
+    length = len(masked)
+    while index < length:
+        if masked[index] == "*":
+            index += 1
+            continue
+        match = _IDENT.match(masked, index)
+        if not match:
+            index += 1
+            continue
+        end = match.end()
+        name = body[match.start() : end]
+        while end < length and masked[end] == ".":
+            part = _IDENT.match(masked, end + 1)
+            if not part:
+                break
+            name = body[part.start() : part.end()]
+            end = part.end()
+        cursor = end
+        while cursor < length and masked[cursor].isspace():
+            cursor += 1
+        if cursor < length and masked[cursor] == "(":
+            index = end
+            continue
+        columns.append(name)
+        index = end
+    return columns
 
 
 def _partial_read(
