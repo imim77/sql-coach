@@ -13,10 +13,18 @@ import CoachSlip from "./components/CoachSlip";
 import ExerciseSidebar from "./components/ExerciseSidebar";
 import ResultPane from "./components/ResultPane";
 import SqlEditor from "./components/SqlEditor";
+import TaskForm from "./components/TaskForm";
 import { EyeIcon, PlayIcon } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import type { ExerciseDetail, ExerciseSummary, HintResponse, QueryResult } from "./types";
 
@@ -47,6 +55,7 @@ export default function App() {
   const [listReady, setListReady] = useState(false);
   const [passed, setPassed] = useState<Set<string>>(loadPassed);
   const [generating, setGenerating] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
   const requested = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -167,6 +176,14 @@ export default function App() {
     }
   }
 
+  async function onTaskCreated(created: ExerciseSummary) {
+    const next = await fetchExercises();
+    setExercises(next);
+    const createdIndex = next.findIndex((exercise) => exercise.id === created.id);
+    if (createdIndex >= 0) setIndex(createdIndex);
+    setTaskOpen(false);
+  }
+
   async function onSolution() {
     if (!exerciseId || busy) return;
     setBusy(true);
@@ -202,8 +219,20 @@ export default function App() {
           onContinue={() => {
             if (lastId) void requestNext(lastId);
           }}
+          onAdd={() => setTaskOpen(true)}
           onIndex={goTo}
         />
+        <Sheet open={taskOpen} onOpenChange={setTaskOpen}>
+          <SheetContent className="overflow-y-auto">
+            <SheetHeader className="pr-8">
+              <SheetTitle>Add a task</SheetTitle>
+              <SheetDescription>
+                This task is saved on the server and added to the path.
+              </SheetDescription>
+            </SheetHeader>
+            <TaskForm onCreated={onTaskCreated} />
+          </SheetContent>
+        </Sheet>
         <SidebarInset className="min-h-0 overflow-hidden">
           <div className="flex min-h-0 flex-1 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
             <section className="flex min-h-0 min-w-0 flex-col border-b lg:w-1/2 lg:border-r lg:border-b-0">

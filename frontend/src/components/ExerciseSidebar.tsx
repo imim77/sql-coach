@@ -1,5 +1,6 @@
 import { CheckIcon, LockIcon } from "lucide-react";
 import type { ExerciseSummary } from "../types";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +22,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 const LOCKED_HINT = "Pass the previous exercise to open this one.";
 
+function tableLabelOf(exercise: ExerciseSummary): string | null {
+  const names = exercise.tables?.map((name) => name.trim()).filter((name) => name.length > 0);
+  if (!names || names.length === 0) return null;
+  return names.join(" · ");
+}
+
 type ExerciseSidebarProps = {
   exercises: ExerciseSummary[];
   index: number;
@@ -30,6 +37,7 @@ type ExerciseSidebarProps = {
   generating: boolean;
   canContinue: boolean;
   onContinue: () => void;
+  onAdd: () => void;
   onIndex: (index: number) => void;
 };
 
@@ -42,13 +50,13 @@ export default function ExerciseSidebar({
   generating,
   canContinue,
   onContinue,
+  onAdd,
   onIndex,
 }: ExerciseSidebarProps) {
   const current = exercises[index];
   const dataset = current?.dataset ?? "Northline";
   const concepts = current?.concepts ?? [];
   const nextLocked = index < exercises.length - 1 && index >= openThrough;
-  const showFooter = generating || canContinue || nextLocked;
 
   return (
     <Sidebar>
@@ -80,11 +88,13 @@ export default function ExerciseSidebar({
                       const locked = optionIndex > openThrough;
                       const isPassed = passed.has(exercise.id);
                       const isCurrent = optionIndex === index;
+                      const tableLabel = tableLabelOf(exercise);
                       const button = (
                         <SidebarMenuButton
                           type="button"
                           isActive={isCurrent}
                           disabled={locked}
+                          className={cn(tableLabel && "h-auto")}
                           onClick={() => {
                             if (!locked) onIndex(optionIndex);
                           }}
@@ -92,7 +102,16 @@ export default function ExerciseSidebar({
                           <span className="tabular-nums">{optionIndex + 1}</span>
                           {locked ? <LockIcon /> : null}
                           {isPassed ? <CheckIcon /> : null}
-                          <span>{exercise.title}</span>
+                          {tableLabel ? (
+                            <div className="flex min-w-0 flex-1 flex-col">
+                              <span className="min-w-0 truncate">{exercise.title}</span>
+                              <span className="min-w-0 truncate font-mono text-xs text-sidebar-foreground/70">
+                                {tableLabel}
+                              </span>
+                            </div>
+                          ) : (
+                            <span>{exercise.title}</span>
+                          )}
                         </SidebarMenuButton>
                       );
 
@@ -120,27 +139,24 @@ export default function ExerciseSidebar({
           </SidebarGroup>
         </ScrollArea>
       </SidebarContent>
-      {showFooter ? (
-        <>
-          <SidebarSeparator />
-          <SidebarFooter>
-            {generating ? (
-              <div className="flex items-center gap-2 px-2">
-                <Skeleton className="size-4" />
-                <p className="text-sidebar-foreground/80">Writing the next exercise…</p>
-              </div>
-            ) : canContinue ? (
-              <Button type="button" variant="secondary" className="w-full" onClick={onContinue}>
-                Write the next exercise
-              </Button>
-            ) : (
-              <p className="px-2 text-sidebar-foreground/80">
-                Pass this exercise to open the next one.
-              </p>
-            )}
-          </SidebarFooter>
-        </>
-      ) : null}
+      <SidebarSeparator />
+      <SidebarFooter>
+        {generating ? (
+          <div className="flex items-center gap-2 px-2">
+            <Skeleton className="size-4" />
+            <p className="text-sidebar-foreground/80">Writing the next exercise…</p>
+          </div>
+        ) : canContinue ? (
+          <Button type="button" variant="secondary" className="w-full" onClick={onContinue}>
+            Write the next exercise
+          </Button>
+        ) : nextLocked ? (
+          <p className="px-2 text-sidebar-foreground/80">Pass this exercise to open the next one.</p>
+        ) : null}
+        <Button type="button" variant="outline" className="w-full" onClick={onAdd}>
+          Add a task
+        </Button>
+      </SidebarFooter>
     </Sidebar>
   );
 }

@@ -1,4 +1,10 @@
-import type { ExerciseDetail, ExerciseSummary, HintResponse, QueryResult } from "./types";
+import type {
+  CreateTaskRequest,
+  ExerciseDetail,
+  ExerciseSummary,
+  HintResponse,
+  QueryResult,
+} from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
@@ -31,6 +37,13 @@ async function readError(response: Response): Promise<string> {
 
 export function fetchExercises(): Promise<ExerciseSummary[]> {
   return request("/api/exercises");
+}
+
+export function createTask(body: CreateTaskRequest): Promise<ExerciseSummary> {
+  return request("/api/tasks", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export function fetchExercise(id: string): Promise<ExerciseDetail> {

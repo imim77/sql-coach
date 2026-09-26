@@ -3,6 +3,17 @@ export type ExerciseSummary = {
   title: string;
   concepts: string[];
   dataset: string;
+  tables?: string[];
+};
+
+export type CreateTaskRequest = {
+  id: string;
+  title: string;
+  prompt: string;
+  concepts: string[];
+  order_matters: boolean;
+  reference_sql: string;
+  hints: [string, string, string];
 };
 
 export type ColumnInfo = {
