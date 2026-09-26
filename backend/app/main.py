@@ -15,6 +15,7 @@ from app.db import DatabaseUnavailable, json_row, ping, run_query, schema_previe
 from app.exercises import detail, summary
 from app.grader import compare
 from app.lesson_gen import LessonError, ensure_installed
+from app.query_plan import plan_for_correct_answer
 from app.referenced_tables import referenced_tables
 from app.sql_guard import QueryRejected
 from app.tasks import TaskError, accept_task
@@ -190,7 +191,13 @@ def run_exercise(exercise_id: str, body: SqlBody):
 
 @app.post("/api/exercises/{exercise_id}/check")
 def check_exercise(exercise_id: str, body: SqlBody):
-    return _grade(_exercise_or_404(exercise_id), body.sql)
+    outcome = _grade(_exercise_or_404(exercise_id), body.sql)
+    if outcome.get("error"):
+        return outcome
+    if outcome.get("correct") is not True:
+        return outcome
+    outcome["plan"] = plan_for_correct_answer(True, body.sql)
+    return outcome
 
 
 @app.post("/api/exercises/{exercise_id}/hint")

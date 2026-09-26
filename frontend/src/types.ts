@@ -43,6 +43,10 @@ export type QueryResult = {
   expected_row_count?: number;
   column_match?: boolean;
   detail?: string | null;
+  plan?: {
+    steps: { op: string; label: string; detail: string }[];
+    mermaid: string;
+  } | null;
 };
 
 export type HintResponse = QueryResult & {

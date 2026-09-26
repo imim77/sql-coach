@@ -1,3 +1,4 @@
+import QueryPlan from "@/components/QueryPlan";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -31,6 +32,8 @@ export default function ResultPane({ result }: { result: QueryResult | null }) {
   const rows = result != null && result.error == null ? result.rows : null;
   const showTable = columns != null && rows != null && rows.length > 0;
   const showNoRows = columns != null && (rows == null || rows.length === 0);
+  const plan =
+    correct && result.plan != null && result.plan.mermaid.length > 0 ? result.plan : null;
 
   return (
     <section
@@ -57,6 +60,21 @@ export default function ResultPane({ result }: { result: QueryResult | null }) {
           <Badge>Correct</Badge>
           <AlertTitle>That result matches.</AlertTitle>
         </Alert>
+      ) : null}
+      {plan ? (
+        <>
+          <QueryPlan mermaidSource={plan.mermaid} />
+          <ol className="flex list-decimal flex-col gap-2 pl-5 font-sans text-sm leading-relaxed">
+            {plan.steps.map((step, index) => (
+              <li key={`${step.op}-${index}`} className="list-item">
+                <span className="font-medium">{step.label}</span>
+                {step.detail ? (
+                  <span className="text-muted-foreground"> {step.detail}</span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </>
       ) : null}
       {wrong ? (
         <Alert variant="destructive">
